@@ -1,0 +1,57 @@
+id: mcp-verbose-error-disclosure
+
+info:
+  name: MCP Server - Verbose Error Message Information Disclosure
+  author: razasharif
+  severity: low
+  description: |
+    Detects Model Context Protocol (MCP) servers that return verbose error
+    messages containing stack traces, file paths, or internal implementation
+    details. This information aids attackers in identifying the technology
+    stack, file system layout, and potential vulnerabilities in the server
+    implementation.
+  reference:
+    - https://modelcontextprotocol.io/specification/2025-06-18/basic/errors
+    - https://cheatsheetseries.owasp.org/cheatsheets/MCP_Security_Cheat_Sheet.html
+    - https://owasp.org/www-community/Improper_Error_Handling
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N
+    cvss-score: 5.3
+    cwe-id: CWE-209
+  metadata:
+    max-request: 1
+  tags: mcp,info-disclosure,misconfig
+
+http:
+  - method: POST
+    path:
+      - "{{BaseURL}}/mcp"
+      - "{{BaseURL}}/mcp/v1"
+      - "{{BaseURL}}/"
+    headers:
+      Content-Type: application/json
+      Accept: "application/json, text/event-stream"
+    body: |
+      {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"__nonexistent_tool_abcxyz__","arguments":{}}}
+    stop-at-first-match: true
+    matchers-condition: or
+    matchers:
+      - type: word
+        part: body
+        words:
+          - 'Traceback (most recent call last)'
+          - 'at Object.<anonymous>'
+          - '.py", line '
+          - '.js:'
+          - '/home/'
+          - '/usr/local/'
+          - 'C:\\Users\\'
+          - 'node_modules'
+          - 'site-packages'
+          - 'Stack trace:'
+        condition: or
+      - type: regex
+        part: body
+        regex:
+          - 'at [A-Za-z0-9_$]+ \(/[^)]+\)'
+          - 'File "[^"]+\.py", line \d+'

@@ -1,0 +1,53 @@
+id: mcp-prompts-list-unauth
+
+info:
+  name: MCP Server - Unauthenticated Prompts List Exposure
+  author: razasharif
+  severity: low
+  description: |
+    Detects Model Context Protocol (MCP) servers that expose their prompts/list
+    method without authentication. Prompt templates can reveal business logic,
+    use cases, and internal workflows. Unauthenticated exposure aids an attacker
+    in understanding the server's intended purpose.
+  reference:
+    - https://modelcontextprotocol.io/specification/2025-06-18/server/prompts
+    - https://cheatsheetseries.owasp.org/cheatsheets/MCP_Security_Cheat_Sheet.html
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N
+    cvss-score: 4.3
+    cwe-id: CWE-306
+  metadata:
+    max-request: 1
+  tags: mcp,exposure,unauth,misconfig
+
+http:
+  - method: POST
+    path:
+      - "{{BaseURL}}/mcp"
+      - "{{BaseURL}}/mcp/v1"
+      - "{{BaseURL}}/"
+    headers:
+      Content-Type: application/json
+      Accept: "application/json, text/event-stream"
+    body: |
+      {"jsonrpc":"2.0","id":1,"method":"prompts/list","params":{}}
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - '"jsonrpc":"2.0"'
+          - '"prompts"'
+        condition: and
+      - type: word
+        part: body
+        words:
+          - '"error"'
+          - 'unauthorized'
+          - 'Unauthorized'
+        condition: or
+        negative: true
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,63 @@
+id: mcp-missing-auth-header
+
+info:
+  name: MCP Server - Missing Authorization on Protected Methods
+  author: razasharif
+  severity: high
+  description: |
+    Detects Model Context Protocol (MCP) servers that allow calling
+    tools/call without requiring an Authorization header or session token.
+    MCP servers exposing tools/call to unauthenticated clients may permit
+    attackers to directly invoke backend functions, potentially leading to
+    data exfiltration, remote code execution, or privilege escalation depending
+    on the tool implementations.
+  reference:
+    - https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization
+    - https://cheatsheetseries.owasp.org/cheatsheets/MCP_Security_Cheat_Sheet.html
+    - https://owasp.org/www-project-mcp-top-10/
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+    cvss-score: 9.8
+    cwe-id: CWE-306
+  metadata:
+    max-request: 2
+  tags: mcp,auth,unauth,critical
+
+http:
+  - method: POST
+    path:
+      - "{{BaseURL}}/mcp"
+      - "{{BaseURL}}/mcp/v1"
+      - "{{BaseURL}}/"
+    headers:
+      Content-Type: application/json
+      Accept: "application/json, text/event-stream"
+    body: |
+      {"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - '"tools"'
+          - '"name"'
+        condition: and
+      - type: word
+        part: body
+        words:
+          - '"error"'
+          - 'unauthorized'
+          - 'Unauthorized'
+          - '"code":-32001'
+          - '"code":-32002'
+        condition: or
+        negative: true
+      - type: word
+        part: header
+        words:
+          - 'WWW-Authenticate'
+        negative: true
+      - type: status
+        status:
+          - 200

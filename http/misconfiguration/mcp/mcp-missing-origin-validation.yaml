@@ -1,0 +1,56 @@
+id: mcp-missing-origin-validation
+
+info:
+  name: MCP Server - Missing Origin Header Validation (DNS Rebinding Risk)
+  author: razasharif
+  severity: medium
+  description: |
+    Detects Model Context Protocol (MCP) servers that accept requests with
+    arbitrary Origin headers. The MCP specification recommends validating the
+    Origin header to prevent DNS rebinding attacks where a malicious website
+    can issue requests to an MCP server bound to localhost or an internal
+    network, potentially invoking tools on behalf of the victim.
+  reference:
+    - https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
+    - https://cheatsheetseries.owasp.org/cheatsheets/MCP_Security_Cheat_Sheet.html
+    - https://en.wikipedia.org/wiki/DNS_rebinding
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N
+    cvss-score: 4.7
+    cwe-id: CWE-346
+  metadata:
+    max-request: 1
+  tags: mcp,misconfig,dns-rebinding,origin
+
+http:
+  - method: POST
+    path:
+      - "{{BaseURL}}/mcp"
+      - "{{BaseURL}}/mcp/v1"
+      - "{{BaseURL}}/"
+    headers:
+      Content-Type: application/json
+      Accept: "application/json, text/event-stream"
+      Origin: "http://evil.example.com"
+    body: |
+      {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"nuclei-origin-test","version":"1.0"}}}
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - '"jsonrpc":"2.0"'
+          - '"result"'
+          - '"serverInfo"'
+        condition: and
+      - type: word
+        part: header
+        words:
+          - 'Access-Control-Allow-Origin: *'
+          - 'Access-Control-Allow-Origin: http://evil.example.com'
+        condition: or
+        negative: false
+      - type: status
+        status:
+          - 200

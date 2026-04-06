@@ -1,0 +1,47 @@
+id: mcp-cors-misconfig
+
+info:
+  name: MCP Server - Permissive CORS Configuration
+  author: razasharif
+  severity: medium
+  description: |
+    Detects Model Context Protocol (MCP) servers with overly permissive CORS
+    headers. A wildcard Access-Control-Allow-Origin combined with
+    Access-Control-Allow-Credentials allows any website to make authenticated
+    requests to the MCP server from the browser, enabling credential theft and
+    unauthorised tool invocation.
+  reference:
+    - https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
+    - https://cheatsheetseries.owasp.org/cheatsheets/MCP_Security_Cheat_Sheet.html
+    - https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:N/A:N
+    cvss-score: 6.5
+    cwe-id: CWE-942
+  metadata:
+    max-request: 1
+  tags: mcp,cors,misconfig
+
+http:
+  - method: OPTIONS
+    path:
+      - "{{BaseURL}}/mcp"
+      - "{{BaseURL}}/mcp/v1"
+      - "{{BaseURL}}/"
+    headers:
+      Origin: "https://attacker.example.com"
+      Access-Control-Request-Method: POST
+      Access-Control-Request-Headers: Content-Type
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: header
+        words:
+          - 'Access-Control-Allow-Origin: *'
+          - 'Access-Control-Allow-Origin: https://attacker.example.com'
+        condition: or
+      - type: word
+        part: header
+        words:
+          - 'Access-Control-Allow-Credentials: true'

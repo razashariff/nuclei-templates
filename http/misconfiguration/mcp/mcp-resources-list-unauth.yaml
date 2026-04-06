@@ -1,0 +1,65 @@
+id: mcp-resources-list-unauth
+
+info:
+  name: MCP Server - Unauthenticated Resources List Exposure
+  author: razasharif
+  severity: medium
+  description: |
+    Detects Model Context Protocol (MCP) servers that expose their resources/list
+    method without authentication. Resources represent data accessible to agents
+    (files, databases, APIs). Unauthenticated exposure lets attackers map the
+    available data surface of the server.
+  reference:
+    - https://modelcontextprotocol.io/specification/2025-06-18/server/resources
+    - https://cheatsheetseries.owasp.org/cheatsheets/MCP_Security_Cheat_Sheet.html
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N
+    cvss-score: 5.3
+    cwe-id: CWE-306
+  metadata:
+    max-request: 1
+  tags: mcp,exposure,unauth,misconfig
+
+http:
+  - method: POST
+    path:
+      - "{{BaseURL}}/mcp"
+      - "{{BaseURL}}/mcp/v1"
+      - "{{BaseURL}}/"
+    headers:
+      Content-Type: application/json
+      Accept: "application/json, text/event-stream"
+    body: |
+      {"jsonrpc":"2.0","id":1,"method":"resources/list","params":{}}
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - '"jsonrpc":"2.0"'
+          - '"resources"'
+        condition: and
+      - type: word
+        part: body
+        words:
+          - '"uri"'
+          - '"name"'
+        condition: and
+      - type: word
+        part: body
+        words:
+          - '"error"'
+          - 'unauthorized'
+          - 'Unauthorized'
+        condition: or
+        negative: true
+      - type: status
+        status:
+          - 200
+    extractors:
+      - type: json
+        name: resource_uris
+        part: body
+        json:
+          - ".result.resources[].uri"

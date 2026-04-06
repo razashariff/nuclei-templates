@@ -1,0 +1,66 @@
+id: mcp-sse-transport-detection
+
+info:
+  name: Model Context Protocol (MCP) Server Detection - SSE Transport
+  author: razasharif
+  severity: info
+  description: |
+    Detects exposed Model Context Protocol (MCP) servers that implement the
+    legacy Server-Sent Events (SSE) transport defined in the 2024-11-05
+    specification. These servers expose a /sse GET endpoint for the event
+    stream and a /messages/ POST endpoint for JSON-RPC requests. This
+    template probes both using a method-mismatch approach to force instant
+    responses without holding an SSE stream open, then fingerprints the
+    characteristic error patterns used by FastMCP and other SSE-transport
+    MCP server implementations.
+  reference:
+    - https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/transports/
+    - https://modelcontextprotocol.io
+    - https://cheatsheetseries.owasp.org/cheatsheets/MCP_Security_Cheat_Sheet.html
+  classification:
+    cwe-id: CWE-200
+  metadata:
+    max-request: 2
+  tags: mcp,tech,detect,sse
+
+http:
+  - method: POST
+    path:
+      - "{{BaseURL}}/sse"
+      - "{{BaseURL}}/mcp/sse"
+      - "{{BaseURL}}/api/sse"
+    headers:
+      Content-Type: application/json
+    body: "{}"
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 405
+      - type: word
+        part: header
+        words:
+          - 'allow: HEAD, GET'
+          - 'allow: GET, HEAD'
+          - 'Allow: HEAD, GET'
+          - 'Allow: GET, HEAD'
+        condition: or
+
+  - method: GET
+    path:
+      - "{{BaseURL}}/messages/"
+      - "{{BaseURL}}/messages"
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 400
+      - type: word
+        part: body
+        words:
+          - 'session'
+          - 'Missing session_id'
+          - 'Invalid session'
+        condition: or

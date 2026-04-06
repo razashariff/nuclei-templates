@@ -1,0 +1,67 @@
+id: mcp-server-detection
+
+info:
+  name: Model Context Protocol (MCP) Server Detection
+  author: razasharif
+  severity: info
+  description: |
+    Detects exposed Model Context Protocol (MCP) servers by issuing a JSON-RPC
+    initialize request. MCP is an open protocol for connecting LLMs to external
+    tools and data sources. This template works against any MCP server that
+    implements the streamable HTTP transport (JSON-RPC 2.0 over POST).
+  reference:
+    - https://modelcontextprotocol.io
+    - https://spec.modelcontextprotocol.io
+    - https://cheatsheetseries.owasp.org/cheatsheets/MCP_Security_Cheat_Sheet.html
+  classification:
+    cwe-id: CWE-200
+  metadata:
+    max-request: 1
+    shodan-query: http.title:"MCP"
+  tags: mcp,tech,detect,json-rpc
+
+http:
+  - method: POST
+    path:
+      - "{{BaseURL}}/mcp"
+      - "{{BaseURL}}/mcp/v1"
+      - "{{BaseURL}}/"
+    headers:
+      Content-Type: application/json
+      Accept: "application/json, text/event-stream"
+    body: |
+      {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"nuclei-mcp-scan","version":"1.0"}}}
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - '"jsonrpc":"2.0"'
+          - '"protocolVersion"'
+        condition: and
+      - type: word
+        part: body
+        words:
+          - '"result"'
+          - '"serverInfo"'
+        condition: or
+      - type: status
+        status:
+          - 200
+    extractors:
+      - type: json
+        name: protocol_version
+        part: body
+        json:
+          - ".result.protocolVersion"
+      - type: json
+        name: server_name
+        part: body
+        json:
+          - ".result.serverInfo.name"
+      - type: json
+        name: server_version
+        part: body
+        json:
+          - ".result.serverInfo.version"
